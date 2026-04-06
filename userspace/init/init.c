@@ -15,6 +15,7 @@
 #include <kernel/proc/sched.h>
 #include <kernel/fs/vfs.h>
 #include <lib/string.h>
+#include <heroshell/heroshell.h>
 
 /* Service descriptor */
 typedef struct {
@@ -36,7 +37,29 @@ static service_t services[] = {
 
 #define SERVICE_COUNT  (sizeof(services) / sizeof(services[0]))
 
-/* ─── HeroShell stub ─────────────────────────────────────────────────────── */
+/* ─── Filesystem layout ──────────────────────────────────────────────────── */
+
+static void init_filesystem(void) {
+    vfs_mkdir("/tmp",  0777);
+    vfs_mkdir("/dev",  0755);
+    vfs_mkdir("/bin",  0755);
+    vfs_mkdir("/proc", 0555);
+    vfs_mkdir("/home", 0755);
+    vfs_mkdir("/etc",  0755);
+    vfs_mkdir("/var",  0755);
+
+    vfs_node_t *motd = vfs_open("/etc/motd", O_CREAT | O_WRONLY);
+    if (motd) {
+        const char *msg = "Welcome to HeroOS — One OS, Many Platforms.\n"
+                          "Type 'help' to get started.\n";
+        vfs_write(motd, 0, strlen(msg), msg);
+        vfs_close(motd);
+    }
+
+    pr_info("init: filesystem layout created\n");
+}
+
+/* ─── HeroShell ──────────────────────────────────────────────────────────── */
 
 static void heroshell_main(void) {
     pr_info("HeroShell: starting console shell\n");
@@ -44,15 +67,13 @@ static void heroshell_main(void) {
     printk("  ╔══════════════════════════════════════════╗\n");
     printk("  ║     HeroShell v0.1 — HeroOS Console     ║\n");
     printk("  ╚══════════════════════════════════════════╝\n");
-    printk("  Type 'exit' to quit, 'help' for commands.\n");
     printk("\n");
 
-    /* HeroShell REPL will be implemented in userspace/heroshell/ */
-    for (;;) {
-        printk("hero$ ");
-        /* TODO: read line from keyboard, parse, execute */
-        sched_sleep(1000);
-    }
+    shell_init();
+    shell_run();
+
+    /* shell_run() only returns when the user types 'exit' */
+    for (;;) sched_yield();
 }
 
 /* ─── HeroServe stub ─────────────────────────────────────────────────────── */
@@ -83,6 +104,18 @@ static void start_service(service_t *svc) {
 void init_main(void) {
     pr_info("init: PID 1 starting\n");
 
+    /* Set up the initial filesystem layout */
+    init_filesystem();
+
+    pr_info("init: HeroOS is ready.\n\n");
+
+    printk("┌──────────────────────────────────────────────────┐\n");
+    printk("│  HeroOS is ready!                                │\n");
+    printk("│                                                  │\n");
+    printk("│  Type 'help' in HeroShell to get started.        │\n");
+    printk("│  Install dev tools: heropkg install <tool>       │\n");
+    printk("└──────────────────────────────────────────────────┘\n\n");
+
     /* Start autostart services */
     for (size_t i = 0; i < SERVICE_COUNT; i++) {
         if (services[i].autostart)
@@ -95,3 +128,4 @@ void init_main(void) {
         sched_sleep(100);
     }
 }
+

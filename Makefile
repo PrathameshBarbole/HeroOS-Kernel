@@ -54,10 +54,12 @@ CFLAGS := \
     -Wno-unused-parameter \
     -O2 \
     -g \
+    -I. \
     -Iinclude \
     -Iarch/x86_64 \
     -Idrivers \
-    -Ifs
+    -Ifs \
+    -Iuserspace
 
 ASFLAGS := -f elf64
 
@@ -97,7 +99,9 @@ C_SRCS := \
     drivers/framebuffer/framebuffer.c \
     fs/tmpfs/tmpfs.c \
     lib/string.c \
-    lib/printk.c
+    lib/printk.c \
+    userspace/init/init.c \
+    userspace/heroshell/heroshell.c
 
 # Object files
 ASM_OBJS := $(patsubst %.asm, $(BUILD_DIR)/%.o, $(ASM_SRCS))
