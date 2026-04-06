@@ -53,13 +53,24 @@ HeroOS-Kernel/
 │   ├── string.c           memset/memcpy/strcpy/…
 │   └── printk.c           printf-style kernel logging
 │
-├── userspace/             User-space components
+├── userspace/             User-space apps and tools
 │   ├── init/              PID 1 init system
-│   ├── heroshell/         Interactive shell
-│   ├── heropkg/           Package manager
-│   └── heroserve/         Zero-config HTTP server
+│   ├── files/             Files — file manager
+│   ├── terminal/          Terminal — terminal emulator
+│   ├── quill/             Quill — code editor
+│   ├── lens/              Lens — web browser
+│   ├── prism/             Prism — system settings
+│   ├── pulse/             Pulse — system monitor
+│   ├── wave/              Wave — media player
+│   ├── heroshell/         HeroShell — advanced system shell
+│   ├── heropkg/           HeroPkg — package manager
+│   └── heroserve/         HeroServe — zero-config HTTP dev server
 │
-├── ui/                    Display server + desktop environment (stub)
+├── ui/                    Display system + desktop environment
+│   ├── canvas/            Canvas — compositor (Wayland-inspired)
+│   ├── aura/              Aura — desktop environment (tiling + floating WM)
+│   ├── orbit/             Orbit — app launcher (Super+Space)
+│   └── echo/              Echo — notification system
 ├── tools/                 linker.ld, build utilities
 ├── Makefile               Top-level build system
 └── .github/workflows/     CI (build + QEMU smoke test)
@@ -186,15 +197,15 @@ Physical:
 
 ## Planned Milestones
 
-| Milestone | Description                                   |
-|-----------|-----------------------------------------------|
-| 0.1.0     | x86_64 boot, serial output, memory, IDT ✓     |
-| 0.2.0     | Process scheduler, IPC, VFS, tmpfs ✓ (stub)   |
-| 0.3.0     | Full QEMU boot to HeroShell prompt             |
-| 0.4.0     | TCP/IP stack, HeroServe HTTP server            |
-| 0.5.0     | ext2 filesystem, disk I/O                     |
-| 0.6.0     | AArch64 port (RPi 4)                          |
-| 0.7.0     | Framebuffer compositor, HeroDE window manager |
-| 0.8.0     | User-space runtime, ELF loader                |
-| 0.9.0     | HeroPkg package manager + dev tool repos      |
-| 1.0.0     | First public release                          |
+| Milestone | Description                                                  |
+|-----------|--------------------------------------------------------------|
+| 0.1.0     | x86_64 boot, serial output, memory, IDT ✓                    |
+| 0.2.0     | Process scheduler, IPC, VFS, tmpfs, syscalls, drivers ✓      |
+| 0.3.0     | App suite design (Files, Terminal, Quill, Lens, Prism, …) ✓  |
+| 0.4.0     | Full QEMU boot to Terminal + HeroShell prompt                |
+| 0.5.0     | TCP/IP stack, HeroServe HTTP server                          |
+| 0.6.0     | ext2 filesystem, disk I/O (NVMe/SATA)                        |
+| 0.7.0     | AArch64 port (Raspberry Pi 4/5)                             |
+| 0.8.0     | Canvas compositor, Aura desktop, Orbit launcher, Echo notifs |
+| 0.9.0     | ELF loader, user-space runtime, all apps functional          |
+| 1.0.0     | HeroPkg + curated dev tool repository; first public release  |

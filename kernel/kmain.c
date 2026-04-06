@@ -125,13 +125,13 @@ static void init_process(void) {
     printk("┌──────────────────────────────────────────────────┐\n");
     printk("│  HeroOS is ready!                                │\n");
     printk("│                                                  │\n");
-    printk("│  Available commands (future heroshell):          │\n");
-    printk("│    hero serve   — start HeroServe HTTP server    │\n");
-    printk("│    hero pkg     — HeroPkg package manager        │\n");
-    printk("│    hero info    — system information             │\n");
+    printk("│  Apps    Terminal · Files · Quill · Lens · Wave  │\n");
+    printk("│          Prism · Pulse · Orbit · Echo            │\n");
     printk("│                                                  │\n");
-    printk("│  Developer tools: bun, npm, git, python, go      │\n");
-    printk("│  Install via: heropkg install <tool>             │\n");
+    printk("│  Dev     HeroShell  ·  HeroPkg  ·  HeroServe     │\n");
+    printk("│                                                  │\n");
+    printk("│  hero serve   — instant local HTTP server        │\n");
+    printk("│  heropkg install <tool>  — install dev tools     │\n");
     printk("└──────────────────────────────────────────────────┘\n\n");
 
     /* Idle — in a future release this will exec /bin/heroshell */

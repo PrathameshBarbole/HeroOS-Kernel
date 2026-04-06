@@ -3,8 +3,8 @@
  *
  * Responsibilities:
  *   - Set up the initial filesystem layout
- *   - Start system services (HeroServe, HeroPkg daemon)
- *   - Launch HeroShell for the console
+ *   - Start system services (Canvas compositor, Echo, HeroServe, HeroPkg daemon)
+ *   - Launch Terminal + HeroShell for the console
  *   - Reap zombie processes
  *   - Handle system shutdown/reboot signals
  */
@@ -30,27 +30,28 @@ static void heroshell_main(void);
 static void heroserve_main(void);
 
 static service_t services[] = {
-    { "heroshell",  heroshell_main,  true,  false, 0 },
-    { "heroserved", heroserve_main,  false, false, 0 },
+    { "terminal",   terminal_service, true,  false, 0 },
+    { "heroserved", heroserve_main,   false, false, 0 },
 };
 
 #define SERVICE_COUNT  (sizeof(services) / sizeof(services[0]))
 
-/* ─── HeroShell stub ─────────────────────────────────────────────────────── */
+/* ─── Terminal (wraps HeroShell) ─────────────────────────────────────────── */
 
-static void heroshell_main(void) {
-    pr_info("HeroShell: starting console shell\n");
+static void terminal_service(void) {
+    pr_info("Terminal: starting console terminal\n");
     printk("\n");
     printk("  ╔══════════════════════════════════════════╗\n");
-    printk("  ║     HeroShell v0.1 — HeroOS Console     ║\n");
+    printk("  ║     Terminal  ·  HeroOS Console          ║\n");
+    printk("  ║     Powered by HeroShell v0.1            ║\n");
     printk("  ╚══════════════════════════════════════════╝\n");
-    printk("  Type 'exit' to quit, 'help' for commands.\n");
+    printk("  Type 'help' for commands. Type 'hero help' for HeroOS tools.\n");
     printk("\n");
 
-    /* HeroShell REPL will be implemented in userspace/heroshell/ */
+    /* HeroShell REPL — implemented in userspace/heroshell/ */
     for (;;) {
         printk("hero$ ");
-        /* TODO: read line from keyboard, parse, execute */
+        /* TODO: read line from keyboard/PTY, parse, execute */
         sched_sleep(1000);
     }
 }
