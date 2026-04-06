@@ -98,45 +98,8 @@ static void *mb2_find_tag(uintptr_t mb2_phys, uint32_t tag_type) {
 
 /* ─── Init process ────────────────────────────────────────────────────────── */
 
-static void init_process(void) {
-    pr_info("init: HeroOS userspace init started (PID 1)\n");
-
-    /* Create basic directory structure */
-    vfs_mkdir("/tmp",  0777);
-    vfs_mkdir("/dev",  0755);
-    vfs_mkdir("/bin",  0755);
-    vfs_mkdir("/proc", 0555);
-    vfs_mkdir("/home", 0755);
-    vfs_mkdir("/etc",  0755);
-    vfs_mkdir("/var",  0755);
-
-    /* Write a motd to /etc/motd */
-    vfs_node_t *motd = vfs_open("/etc/motd", O_CREAT | O_WRONLY);
-    if (motd) {
-        const char *msg = "Welcome to HeroOS — One OS, Many Platforms.\n"
-                          "Type 'hero help' to get started.\n";
-        vfs_write(motd, 0, strlen(msg), msg);
-        vfs_close(motd);
-    }
-
-    pr_info("init: filesystem layout created\n");
-    pr_info("init: HeroOS is ready.\n\n");
-
-    printk("┌──────────────────────────────────────────────────┐\n");
-    printk("│  HeroOS is ready!                                │\n");
-    printk("│                                                  │\n");
-    printk("│  Available commands (future heroshell):          │\n");
-    printk("│    hero serve   — start HeroServe HTTP server    │\n");
-    printk("│    hero pkg     — HeroPkg package manager        │\n");
-    printk("│    hero info    — system information             │\n");
-    printk("│                                                  │\n");
-    printk("│  Developer tools: bun, npm, git, python, go      │\n");
-    printk("│  Install via: heropkg install <tool>             │\n");
-    printk("└──────────────────────────────────────────────────┘\n\n");
-
-    /* Idle — in a future release this will exec /bin/heroshell */
-    for (;;) sched_yield();
-}
+/* Defined in userspace/init/init.c */
+extern void init_main(void);
 
 /* ─── kmain ───────────────────────────────────────────────────────────────── */
 
@@ -215,7 +178,7 @@ void kmain(uintptr_t mb2_info_phys) {
             (stats.used_pages  * PAGE_SIZE) >> 20);
 
     /* Step 12: Spawn init (PID 1) */
-    process_t *init = proc_create_kernel_thread("init", init_process);
+    process_t *init = proc_create_kernel_thread("init", init_main);
     if (!init) kernel_panic("Failed to create init process");
     sched_add(init);
 

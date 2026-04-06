@@ -27,10 +27,11 @@ static key_event_t kbd_buffer[KBD_BUFFER_SIZE];
 static uint32_t    kbd_head = 0;
 static uint32_t    kbd_tail = 0;
 
-static bool shift_pressed = false;
-static bool ctrl_pressed  = false;
-static bool alt_pressed   = false;
-static bool caps_lock     = false;
+static bool shift_pressed    = false;
+static bool ctrl_pressed     = false;
+static bool alt_pressed      = false;
+static bool caps_lock        = false;
+static bool extended_pending = false;  /* received 0xE0 prefix */
 
 /* ─── Port I/O ───────────────────────────────────────────────────────────── */
 
@@ -43,23 +44,38 @@ static inline uint8_t inb(uint16_t port) {
 static void keyboard_irq_handler(interrupt_frame_t *frame) {
     (void)frame;
     uint8_t scancode = inb(KBD_DATA_PORT);
+
+    /* 0xE0 is a prefix byte for extended keys (e.g. arrow keys, Home, End).
+     * The actual scancode arrives in the next interrupt. Remember the prefix
+     * and wait for that second byte before generating a key event. */
+    if (scancode == 0xE0) {
+        extended_pending = true;
+        return;
+    }
+
+    bool extended = extended_pending;
+    extended_pending = false;
+
     bool released = (scancode & 0x80) != 0;
     scancode &= 0x7F;
 
-    /* Update modifier state */
-    if (scancode == KEY_LSHIFT || scancode == KEY_RSHIFT) {
-        shift_pressed = !released;
-        return;
+    /* Update modifier state (only for non-extended modifier keys) */
+    if (!extended) {
+        if (scancode == KEY_LSHIFT || scancode == KEY_RSHIFT) {
+            shift_pressed = !released;
+            return;
+        }
+        if (scancode == KEY_CTRL)  { ctrl_pressed  = !released; return; }
+        if (scancode == KEY_ALT)   { alt_pressed   = !released; return; }
+        if (scancode == KEY_CAPS && !released) { caps_lock = !caps_lock; return; }
     }
-    if (scancode == KEY_CTRL)  { ctrl_pressed  = !released; return; }
-    if (scancode == KEY_ALT)   { alt_pressed   = !released; return; }
-    if (scancode == KEY_CAPS && !released) { caps_lock = !caps_lock; return; }
 
     if (released) return;   /* Only handle key-down for character events */
 
+    /* Derive ASCII for normal (non-extended) keys */
     bool use_shift = shift_pressed ^ caps_lock;
     char ascii = 0;
-    if (scancode < 128)
+    if (!extended && scancode < 128)
         ascii = use_shift ? scancode_shift[scancode] : scancode_normal[scancode];
 
     key_event_t event = {
@@ -69,6 +85,7 @@ static void keyboard_irq_handler(interrupt_frame_t *frame) {
         .shift    = shift_pressed,
         .ctrl     = ctrl_pressed,
         .alt      = alt_pressed,
+        .extended = extended,
     };
 
     /* Buffer the event */
@@ -101,7 +118,7 @@ bool keyboard_poll(key_event_t *event) {
 
 char keyboard_getchar(void) {
     key_event_t ev;
-    while (!keyboard_poll(&ev) || !ev.ascii)
+    while (!keyboard_poll(&ev) || !ev.ascii || ev.extended)
         __asm__ volatile("hlt");
     return ev.ascii;
 }

@@ -7,6 +7,41 @@
 #include <kernel/proc/sched.h>
 #include <kernel/fs/vfs.h>
 #include <lib/string.h>
+#include <drivers/keyboard/keyboard.h>
+
+/* ─── Terminal helpers ───────────────────────────────────────────────────── */
+
+/* Erase `n` characters from the display (backspace + space + backspace). */
+static void term_erase(int n) {
+    for (int i = 0; i < n; i++) printk("\b \b");
+}
+
+/* ─── History ────────────────────────────────────────────────────────────── */
+
+static char hist_buf[SHELL_HIST_SIZE][SHELL_LINE_MAX];
+static int  hist_count = 0;   /* number of entries stored   */
+static int  hist_head  = 0;   /* index of the oldest entry  */
+
+static void hist_add(const char *line) {
+    int idx = (hist_head + hist_count) % SHELL_HIST_SIZE;
+    strncpy(hist_buf[idx], line, SHELL_LINE_MAX - 1);
+    hist_buf[idx][SHELL_LINE_MAX - 1] = '\0';
+    if (hist_count < SHELL_HIST_SIZE)
+        hist_count++;
+    else
+        hist_head = (hist_head + 1) % SHELL_HIST_SIZE;
+}
+
+/* offset 0 = most recent entry, 1 = one before that, … */
+static const char *hist_get(int offset) {
+    if (offset < 0 || offset >= hist_count) return NULL;
+    int idx = (hist_head + hist_count - 1 - offset) % SHELL_HIST_SIZE;
+    return hist_buf[idx];
+}
+
+/* ─── Shell-exit flag ────────────────────────────────────────────────────── */
+
+static bool shell_should_exit = false;
 
 /* ─── Built-ins ──────────────────────────────────────────────────────────── */
 
@@ -29,10 +64,8 @@ int builtin_help(int argc, char **argv) {
 }
 
 int builtin_exit(int argc, char **argv) {
-    int code = (argc > 1) ? (int)(*argv[1] - '0') : 0;
-    (void)code;
-    printk("Goodbye!\n");
-    /* TODO: sys_exit(code) */
+    (void)argc; (void)argv;
+    shell_should_exit = true;
     return 0;
 }
 
@@ -181,13 +214,112 @@ int shell_exec_line(const char *line) {
 /* ─── Shell init / REPL ──────────────────────────────────────────────────── */
 
 void shell_init(void) {
+    shell_should_exit = false;
     printk("HeroShell v0.1.0 — type 'help' for commands\n\n");
 }
 
 void shell_run(void) {
-    /* TODO: read lines from keyboard via PTY, echo to terminal */
+    char line[SHELL_LINE_MAX];
+    char saved_line[SHELL_LINE_MAX];  /* preserves typed text during history nav */
+    int  pos      = 0;
+    int  hist_nav = -1;               /* -1 = not navigating; 0 = most-recent   */
+
     for (;;) {
+        /* Print prompt and reset line state */
         printk(SHELL_PROMPT);
-        sched_sleep(1000);   /* Placeholder until PTY/keyboard input is wired */
+        pos      = 0;
+        hist_nav = -1;
+        memset(line, 0, sizeof(line));
+        memset(saved_line, 0, sizeof(saved_line));
+
+        /* Read one line from the keyboard */
+        for (;;) {
+            key_event_t ev;
+            /* Busy-wait with HLT until a key arrives */
+            while (!keyboard_poll(&ev))
+                __asm__ volatile("hlt");
+
+            if (!ev.pressed) continue;
+
+            /* ── Extended keys (arrow keys etc.) ───────────────────────── */
+            if (ev.extended) {
+                if (ev.scancode == KEY_ARROW_UP) {
+                    int next = hist_nav + 1;
+                    const char *entry = hist_get(next);
+                    if (!entry) continue;
+                    /* Save current typed text on first history step */
+                    if (hist_nav < 0)
+                        strncpy(saved_line, line, SHELL_LINE_MAX - 1);
+                    hist_nav = next;
+                    /* Erase current display and replace with history entry */
+                    term_erase(pos);
+                    strncpy(line, entry, SHELL_LINE_MAX - 1);
+                    line[SHELL_LINE_MAX - 1] = '\0';
+                    pos = (int)strlen(line);
+                    printk("%s", line);
+                } else if (ev.scancode == KEY_ARROW_DOWN) {
+                    if (hist_nav < 0) continue;
+                    term_erase(pos);
+                    if (hist_nav > 0) {
+                        hist_nav--;
+                        const char *entry = hist_get(hist_nav);
+                        strncpy(line, entry, SHELL_LINE_MAX - 1);
+                        line[SHELL_LINE_MAX - 1] = '\0';
+                    } else {
+                        hist_nav = -1;
+                        strncpy(line, saved_line, SHELL_LINE_MAX - 1);
+                    }
+                    pos = (int)strlen(line);
+                    printk("%s", line);
+                }
+                continue;
+            }
+
+            /* ── Regular ASCII keys ────────────────────────────────────── */
+            char c = ev.ascii;
+            if (!c) continue;
+
+            if (c == '\r' || c == '\n') {
+                printk("\n");
+                line[pos] = '\0';
+                break;
+            }
+
+            if (c == '\b') {
+                if (pos > 0) {
+                    pos--;
+                    line[pos] = '\0';
+                    term_erase(1);
+                }
+                continue;
+            }
+
+            if (c == 0x1B) {
+                /* ESC: discard line */
+                term_erase(pos);
+                pos = 0;
+                line[0] = '\0';
+                hist_nav = -1;
+                continue;
+            }
+
+            if (pos < SHELL_LINE_MAX - 1) {
+                line[pos++] = c;
+                line[pos]   = '\0';
+                printk("%c", c);
+            }
+        }
+
+        /* Execute the completed line */
+        if (pos > 0) {
+            hist_add(line);
+            shell_exec_line(line);
+        }
+
+        if (shell_should_exit) {
+            printk("Goodbye!\n");
+            break;
+        }
     }
 }
+

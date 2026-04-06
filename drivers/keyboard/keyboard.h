@@ -22,6 +22,16 @@
 #define KEY_F12         0x58
 #define KEY_DELETE      0x53
 
+/* Extended (0xE0-prefixed) key scancodes */
+#define KEY_ARROW_UP    0x48
+#define KEY_ARROW_DOWN  0x50
+#define KEY_ARROW_LEFT  0x4B
+#define KEY_ARROW_RIGHT 0x4D
+#define KEY_HOME        0x47
+#define KEY_END         0x4F
+#define KEY_PAGE_UP     0x49
+#define KEY_PAGE_DOWN   0x51
+
 /* Key event */
 typedef struct {
     uint8_t scancode;
@@ -30,6 +40,7 @@ typedef struct {
     bool    shift;
     bool    ctrl;
     bool    alt;
+    bool    extended;     /* true = 0xE0-prefixed extended key */
 } key_event_t;
 
 #define KBD_BUFFER_SIZE  256
