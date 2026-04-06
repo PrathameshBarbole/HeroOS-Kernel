@@ -1,0 +1,19 @@
+# Build output
+build/
+*.o
+*.d
+*.elf
+*.iso
+*.map
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

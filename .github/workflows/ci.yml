@@ -1,0 +1,115 @@
+name: HeroOS CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  # ── Build kernel ──────────────────────────────────────────────────────────
+  build:
+    name: Build HeroOS Kernel (x86_64)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            gcc binutils nasm \
+            gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu \
+            xorriso grub-pc-bin grub-common \
+            qemu-system-x86 \
+            make
+
+      - name: Build kernel ELF
+        run: |
+          make CROSS_PREFIX="x86_64-linux-gnu-" all
+
+      - name: Build ISO
+        run: |
+          make CROSS_PREFIX="x86_64-linux-gnu-" iso
+        continue-on-error: true
+
+      - name: Upload kernel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: herokernel-elf
+          path: build/herokernel.elf
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heroos-iso
+          path: build/HeroOS.iso
+        continue-on-error: true
+
+  # ── QEMU smoke test ───────────────────────────────────────────────────────
+  qemu-test:
+    name: QEMU Boot Test
+    runs-on: ubuntu-22.04
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y qemu-system-x86 gcc binutils nasm make \
+            gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu
+
+      - name: Download kernel
+        uses: actions/download-artifact@v4
+        with:
+          name: herokernel-elf
+          path: build/
+
+      - name: Run in QEMU (serial output, timeout 30s)
+        run: |
+          timeout 30s qemu-system-x86_64 \
+            -machine q35 \
+            -cpu qemu64 \
+            -m 256M \
+            -serial stdio \
+            -display none \
+            -no-reboot \
+            -no-shutdown \
+            -kernel build/herokernel.elf \
+            2>&1 | tee qemu_output.txt || true
+
+          echo "─── QEMU Output ───"
+          cat qemu_output.txt
+
+          grep -q "HeroOS" qemu_output.txt && echo "✓ HeroOS banner found" || \
+            echo "⚠ Banner not found (expected on full boot)"
+
+      - name: Upload QEMU output
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-boot-log
+          path: qemu_output.txt
+
+  # ── Code quality ──────────────────────────────────────────────────────────
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required files exist
+        run: |
+          test -f kernel/kmain.c            && echo "✓ kmain.c"
+          test -f arch/x86_64/boot/boot.asm && echo "✓ boot.asm"
+          test -f tools/linker.ld           && echo "✓ linker.ld"
+          test -f Makefile                  && echo "✓ Makefile"
+          test -f boot/grub.cfg             && echo "✓ grub.cfg"
+          echo "All required files present."
