@@ -6,11 +6,17 @@ on:
   pull_request:
     branches: [ "**" ]
 
+# Minimal default permissions — each job adds only what it needs
+permissions:
+  contents: read
+
 jobs:
   # ── Build kernel ──────────────────────────────────────────────────────────
   build:
     name: Build HeroOS Kernel (x86_64)
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -54,6 +60,8 @@ jobs:
     name: QEMU Boot Test
     runs-on: ubuntu-22.04
     needs: build
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -100,6 +108,8 @@ jobs:
   lint:
     name: Code Quality Check
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
